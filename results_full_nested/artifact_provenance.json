@@ -1,0 +1,51 @@
+{
+  "training_file_sha256": "081fa69da87e6687e7cbb936ef10f22330d057ff322e4ae1973e4c55aecba480",
+  "heldout_file_sha256": "66bd2a11ab1ffb680c8001c7aaf708911b466f99789793fad01abb93bfce6b3e",
+  "training_model_input_sha256": "035b5e9b6631177d906e1489900d2742cb5891b896edf8d54186f5b79d6e88fd",
+  "heldout_model_input_sha256": "56cf6a8c5b805ab2e1e4579609212ee925d690c49d967dfab22f0e2af3157dbe",
+  "script_sha256": "9d7da3aba332829b335df89970103e83b65bf44444b8b40559d64501aa13c878",
+  "selection_table_sha256": "dcf1760d1a32540f08fdea5a353ea1d77c2de358a3f93ba298813318c1e853fc",
+  "configuration": {
+    "augmentation": {
+      "enabled": false
+    },
+    "outer_folds": 5,
+    "outer_repeats": 10,
+    "inner_folds": 3,
+    "inner_repeats": 10,
+    "grid": {
+      "C": [
+        100.0,
+        300.0,
+        1000.0
+      ],
+      "gamma": [
+        0.1,
+        0.2,
+        0.3,
+        0.5,
+        0.75,
+        1.0
+      ],
+      "epsilon": [
+        0.01,
+        0.1,
+        0.5
+      ]
+    },
+    "selection": "one-SE minimax site-by-age",
+    "weights": "inverse repeated-inner-OOF mean-site MAE",
+    "scanner_harmonization": {
+      "method": "ComBat empirical Bayes location and scale",
+      "batch": "acquisition scanner: CamCAN+BCBL=Elekta; OMEGA=other",
+      "preserved_covariates": [
+        "sex"
+      ],
+      "age_preserved": false,
+      "fit_scope": "current fitting partition only"
+    },
+    "site_residualization": "fit partition only",
+    "selection_cache": "disabled; every inner grid is recomputed",
+    "odq_policy": "descriptive quality-control measure only; not a predictor and not used for exclusion because no a priori cutoff was specified"
+  }
+}

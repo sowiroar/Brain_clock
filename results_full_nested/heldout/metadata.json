@@ -1,0 +1,62 @@
+{
+  "augmentation": {
+    "enabled": false,
+    "age_range": [
+      30.0,
+      40.0
+    ],
+    "synthetic_rows_per_model": 0,
+    "models_per_candidate": 1,
+    "parents": "real rows from the current fit partition only"
+  },
+  "ensemble_rule": "all candidates within one estimated SE of the repeated-inner-CV minimum worst site-by-age MAE",
+  "weight_rule": "normalized inverse repeated inner-OOF mean-site MAE",
+  "n_models": 6,
+  "site_residualization": {
+    "order": [
+      "combat_scanner",
+      "site_residualization"
+    ],
+    "combat_scanner": {
+      "scanner_levels": [
+        "elekta",
+        "omega_other"
+      ],
+      "batch_definition": {
+        "elekta": [
+          "camcan",
+          "bcbl"
+        ],
+        "omega_other": [
+          "omega"
+        ]
+      },
+      "preserved_covariates": [
+        "sex"
+      ],
+      "age_preserved": false,
+      "parameters_learned_from": "current training partition only"
+    },
+    "site_residualization": {
+      "site_levels": [
+        "bcbl",
+        "camcan",
+        "omega"
+      ],
+      "subtracted_site_columns": [
+        "camcan",
+        "omega"
+      ],
+      "age_in_nuisance_fit": true,
+      "parameters_learned_from": "current training partition only"
+    }
+  },
+  "age_bias_correction": {
+    "model": "bag_oof_raw = intercept + slope * chronological_age",
+    "slope": -0.20348544093443893,
+    "intercept": 10.91317319264808,
+    "fit_sample": "nested OOF predictions from training only",
+    "heldout_true_age_used_after_prediction": true,
+    "interpretation": "descriptive; raw metrics are predictive evidence"
+  }
+}

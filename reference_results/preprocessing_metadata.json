@@ -1,0 +1,39 @@
+{
+  "order": [
+    "combat_scanner",
+    "site_residualization"
+  ],
+  "combat_scanner": {
+    "scanner_levels": [
+      "elekta",
+      "omega_other"
+    ],
+    "batch_definition": {
+      "elekta": [
+        "camcan",
+        "bcbl"
+      ],
+      "omega_other": [
+        "omega"
+      ]
+    },
+    "preserved_covariates": [
+      "sex"
+    ],
+    "age_preserved": false,
+    "parameters_learned_from": "current training partition only"
+  },
+  "site_residualization": {
+    "site_levels": [
+      "bcbl",
+      "camcan",
+      "omega"
+    ],
+    "subtracted_site_columns": [
+      "camcan",
+      "omega"
+    ],
+    "age_in_nuisance_fit": true,
+    "parameters_learned_from": "current training partition only"
+  }
+}
