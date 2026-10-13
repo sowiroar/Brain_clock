@@ -32,8 +32,9 @@ N_ROI = 82
 RANDOM_STATE = 42
 STRONG_EDGE_THRESHOLD = 0.10
 SCRIPT_DIR = Path(__file__).resolve().parent
-DEFAULT_TRAIN = SCRIPT_DIR / "train_database.csv"
-DEFAULT_OUT = SCRIPT_DIR / "sensitivity_combat_results.csv"
+REPO_DIR = SCRIPT_DIR.parent
+DEFAULT_TRAIN = (REPO_DIR / "data" / "train_database.csv") if (REPO_DIR / "data" / "train_database.csv").exists() else (SCRIPT_DIR / "train_database.csv")
+DEFAULT_OUT = (REPO_DIR / "results" / "sensitivity_combat_results.csv") if (REPO_DIR / "results").exists() else (SCRIPT_DIR / "sensitivity_combat_results.csv")
 
 
 def feature_columns() -> list[str]:

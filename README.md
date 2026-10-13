@@ -1,128 +1,183 @@
-# MEG Brain Clock
+# Multisite MEG Brain-Age Clock
 
-The analysis is self-contained: the Python script imports no project-specific
-module and uses the two CSV files stored beside it.
+A self-contained, reproducible machine learning framework for brain-age prediction using resting-state magnetoencephalography (MEG) functional connectivity.
 
-## Files
+The model predicts chronological age from **3,321 unique off-diagonal AAL82 CMI (Cross-Mutual Information) connectivity features** using support vector regression (SVR) with a radial basis function (RBF) kernel. The framework implements strict data leakage controls, repeated nested cross-validation, training-only ensemble selection, site-aware minimax optimization, and independent held-out evaluation.
 
-- `Brain_clock.py`: complete clock, nested CV, training-only
-  model selection, held-out evaluation, checks, and provenance hashes.
-- `train_database.csv`: training sample (`N=825`).
-- `test_database.csv`: independent held-out sample (`N=144`).
-- `reference_results/`: predictions, metrics, selected models, and
-  preprocessing metadata from the frozen final candidate.
-- `results_full_nested/`: complete fresh execution of all 50 outer folds,
-  including every inner selection table, OOF predictions, CV summaries, final
-  selection, held-out outputs, and provenance.
-- `figures/`: raw predicted-age performance in repeated nested CV and the
-  independent held-out sample.
-- `Sensitivity_ComBat.py`: training-only diagnostic of whether scanner
-  harmonization changes age-connectivity associations.
-- `sensitivity_combat_results.csv`: results of the ComBat sensitivity analysis.
-- `requirements.txt`: versions used for the reference run.
-- `SHA256SUMS.csv`: integrity hashes for every packaged file.
+---
 
-## Final preprocessing and model
+## Repository Structure
 
-For every inner or outer fold, and for the final train-to-held-out fit:
+The repository is organized following standard scientific reproducible research conventions into `code/`, `data/`, and `results/`:
 
-1. Scanner is defined a priori as `Elekta` for CamCAN and BCBL and `CTF` for
-   OMEGA (internally labelled `omega_other`).
-2. ComBat location/scale harmonization is fitted on the current training
-   partition only. Sex is preserved; chronological age is not included in the
-   ComBat covariates.
-3. The frozen ComBat transform is applied to the corresponding validation or
-   held-out partition.
-4. Feature-wise site residualization is fitted on the same training partition,
-   including age in the nuisance fit so that only the site coefficients are
-   subtracted.
-5. RBF-SVR models are fitted to the resulting 3,321 off-diagonal AAL82 CMI
-   features. No data augmentation is used.
-
-Chronological age is deliberately excluded from the ComBat covariates because
-it is the prediction target. Preserving age during harmonization would require
-supplying each validation or held-out participant's true age when applying the
-transform, making the transformed features target-dependent. A training-only
-sensitivity analysis (`Sensitivity_ComBat.py`) checks whether this decision
-materially attenuates age-related connectivity information. The partial
-edge-age association maps before and after the final sex-preserving ComBat
-transformation were nearly identical (`r = 0.996`); all 1,109 edges with an
-original absolute age association of at least 0.10 retained their direction.
-Within each scanner, the original and harmonized age-association maps were
-identical to numerical precision (`r = 1.000`). Full results are stored in
-`sensitivity_combat_results.csv`.
-
-Hyperparameters are evaluated using 10 repeated three-fold inner CV splits,
-stratified by site and within-site age quartile. Within each repeat, the three
-validation folds are combined so that every participant has one out-of-fold
-prediction. MAE is then calculated separately in every site-by-age-quartile
-cell. The score for that candidate and repeat is the largest of these cell-wise
-MAEs, and the selection criterion is its mean across the ten repeats. Thus,
-model selection targets performance in the worst-served site and age range,
-rather than allowing strong performance in a larger or easier subgroup to
-conceal poor performance elsewhere.
-
-Candidates whose mean worst-cell MAE lies within one estimated standard error
-of the minimum are retained. Their predictions are averaged using weights
-inversely proportional to mean site-specific out-of-fold MAE. The one-standard-
-error rule is a model-selection heuristic, not a test of statistical
-equivalence.
-
-The outer performance estimate uses five-fold CV repeated ten times. All
-preprocessing and ensemble selection are repeated inside each outer-training
-partition.
-
-## Run
-
-From this directory:
-
-```powershell
-python .\Brain_clock.py
+```
+Brain_clock/
+├── code/
+│   ├── Brain_clock.py               # Main pipeline: nested CV, selection, held-out evaluation
+│   └── Sensitivity_ComBat.py        # Diagnostic script: ComBat scanner harmonization stability
+├── data/
+│   ├── train_database.csv           # Multisite training dataset (N = 825)
+│   └── test_database.csv            # Independent held-out dataset (N = 144)
+├── results/
+│   ├── figures/                     # Publication figures (.png and .svg)
+│   ├── reference_results/           # Benchmark frozen model predictions and metadata
+│   ├── results_full_nested/         # Complete 50-fold nested CV logs, tables, and provenance
+│   └── sensitivity_combat_results.csv # Empirical results of ComBat sensitivity analysis
+├── AUDIT_NOTES.md                   # Independent audit notes on data leakage controls
+├── requirements.txt                 # Pinned dependencies (compatible with Python 3.10)
+├── SHA256SUMS.csv                   # SHA-256 integrity hashes of repository files
+└── README.md                        # Documentation and replication guide
 ```
 
-The complete nested analysis is computationally expensive and intentionally
-does not use cached selection tables. Outputs are written to `results/`.
+---
 
-Alternative paths can be supplied explicitly:
+## Environment Setup and Installation
 
-```powershell
-python .\Brain_clock.py --train train_database.csv --test test_database.csv --out results
+### Prerequisites
+
+- **Python**: Recommended `3.10.x` (e.g., 3.10.9 or 3.10.20).
+- Compatible with Windows, Linux, and macOS.
+
+### 1. Using `uv` (Recommended for fast setup)
+
+```bash
+# Create Python 3.10 virtual environment
+uv venv --python 3.10 .venv
+
+# Activate environment (Windows PowerShell)
+.venv\Scripts\Activate.ps1
+# On Linux/macOS:
+# source .venv/bin/activate
+
+# Install dependencies
+uv pip install -r requirements.txt
 ```
 
-## Reference held-out performance
+### 2. Using standard `venv` and `pip`
 
-All values below are raw independent predictions:
+```bash
+python -m venv .venv
 
-| Sample | N | Pearson r | MAE | RMSE | R2 |
-|---|---:|---:|---:|---:|---:|
-| OMEGA + BCBL | 144 | 0.80123 | 9.4131 | 11.9112 | 0.58332 |
-| BCBL | 91 | 0.65159 | 10.4732 | 13.4273 | 0.32553 |
-| OMEGA | 53 | 0.73121 | 7.5929 | 8.7131 | 0.38450 |
+# Activate environment
+# Windows PowerShell:
+.venv\Scripts\Activate.ps1
+# Windows CMD:
+# .venv\Scripts\activate.bat
+# Linux/macOS:
+# source .venv/bin/activate
 
-Exact confidence intervals and p-values are stored in
-`reference_results/heldout_raw_performance.csv`.
+# Install dependencies
+pip install -r requirements.txt
+```
 
-## Repeated nested cross-validation performance
+> [!NOTE]
+> `neuroHarmonize` requires `numpy < 2` (tested with `numpy==1.23.5`), `nibabel==5.3.3`, and `neurocombat==0.2.12`. All compatible versions are pinned in `requirements.txt`.
 
-Values are the mean and standard deviation across the ten complete outer-CV
-repetitions. Within each repetition, every training participant receives one
-strictly out-of-fold prediction.
+---
 
-| Sample | N | Pearson r | MAE | RMSE | R2 |
-|---|---:|---:|---:|---:|---:|
-| Train sample | 825 | 0.94128 +/- 0.00271 | 5.2757 +/- 0.1143 | 7.3998 +/- 0.1517 | 0.87657 +/- 0.00506 |
+## Execution and Usage
 
-The complete machine-readable table, including site-specific results, is
-`results_full_nested/cross_validation/metrics_mean_sd_across_repeats.csv`.
+Scripts can be invoked directly from the root of the repository without requiring manual path configurations.
 
-## Interpretation boundaries
+### 1. Fast Smoke-Test Pipeline Verification
 
-- Raw held-out metrics are the evidence of predictive performance.
-- The script also estimates additive age-bias correction from nested OOF
-  training predictions. Because applying that correction uses chronological age
-  after prediction, corrected accuracy is descriptive and is not independent
-  predictive evidence.
-- The held-out set contains new participants from represented sites, not a new
-  acquisition site.
-- ODQ is retained as descriptive quality control. It is neither a predictor nor
-  an exclusion criterion because no a priori threshold was specified.
+To verify that the complete machine learning pipeline, ComBat harmonization, site residualization, ensemble selection, and held-out evaluation execute cleanly without awaiting hours of compute:
+
+```bash
+python code/Brain_clock.py --smoke-test --out results/test_run
+```
+
+### 2. Full Nested Cross-Validation and Independent Held-Out Evaluation
+
+To run the complete scientific analysis (50 outer folds with repeated 3-fold inner grid optimization across 54 SVR hyperparameter configurations):
+
+```bash
+python code/Brain_clock.py --out results/full_run
+```
+
+Optional CLI parameters:
+- `--train <path>`: Path to training CSV (default: `data/train_database.csv`).
+- `--test <path>`: Path to test CSV (default: `data/test_database.csv`).
+- `--out <path>`: Output directory (default: `results`).
+- `--n-jobs <int>`: Parallel worker processes (default: `2`).
+
+### 3. ComBat Scanner Harmonization Sensitivity Analysis
+
+To verify that scanner harmonization preserves biological age associations:
+
+```bash
+python code/Sensitivity_ComBat.py
+```
+
+Outputs will be saved directly to `results/sensitivity_combat_results.csv`.
+
+---
+
+## Methodological Design and Leakage Controls
+
+### Preprocessing and Harmonization Pipeline
+
+For every training partition in inner CV, outer CV, and final held-out fit:
+
+1. **Scanner Hardware Assignment**: Scanner is defined *a priori* by hardware:
+   - `Elekta`: CamCAN and BCBL.
+   - `CTF` (`omega_other`): OMEGA.
+2. **ComBat Empirical Bayes Harmonization**:
+   - Location and scale harmonization is fitted **only on the training partition**.
+   - Sex is retained as a preserved biological covariate.
+   - **Chronological age is intentionally excluded** from ComBat covariates because age is the prediction target. Preserving age during harmonization on test/held-out folds would require feeding true test chronological age, causing target leakage.
+   - The frozen ComBat transformation parameters are transferred unchanged to validation and held-out sets.
+3. **Feature-wise Site Residualization**:
+   - Fitted exclusively on the training partition.
+   - Nuisance design includes age so that only acquisition site variance is removed while preserving age effects.
+4. **Model Architecture**:
+   - Nonlinear RBF-Kernel Support Vector Regression (`SVR(kernel='rbf')`).
+   - Hyperparameter grid: $C \in \{100, 300, 1000\}$, $\gamma \in \{0.1, 0.2, 0.3, 0.5, 0.75, 1.0\}$, $\epsilon \in \{0.01, 0.1, 0.5\}$.
+   - No data augmentation is used in the frozen ensemble.
+
+### Hyperparameter Selection: Minimax Worst-Cell Criterion
+
+- Evaluated across **10 repeated 3-fold inner CV splits**, stratified jointly by acquisition site and within-site age quartile.
+- Out-of-fold (OOF) predictions are computed for each participant per repetition.
+- MAE is computed across every site $\times$ age-quartile cell.
+- The selection metric is the **maximum (worst-cell) MAE**, averaged across repetitions. This guarantees that model selection does not favor configurations that excel in large subgroups at the expense of underrepresented ages or acquisition sites.
+- **One-Standard-Error (1-SE) Rule**: Candidates within 1 SE of the minimax minimum are retained. Predictions are ensembled using normalized weights inversely proportional to their inner-OOF mean site-specific MAE.
+
+### Complete Partition Independence
+
+- **Held-out Isolation**: `data/test_database.csv` is loaded strictly *after* full training selection has completed.
+- **Audit Verification**: Full details on partition overlap assertions, hash checks, and leakage controls are documented in [`AUDIT_NOTES.md`](file:///c:/Users/eguen/Documents/Githubs-Redlat/Brain_clock/AUDIT_NOTES.md).
+
+---
+
+## Benchmark Reference Performance
+
+### Independent Held-Out Sample ($N = 144$)
+
+Performance on unseen participants from representative sites (BCBL and OMEGA):
+
+| Sample | N | Pearson $r$ | MAE (years) | RMSE (years) | $R^2$ |
+|:---|:---:|:---:|:---:|:---:|:---:|
+| **Pooled (OMEGA + BCBL)** | **144** | **0.801** | **9.41** | **11.91** | **0.583** |
+| BCBL | 91 | 0.652 | 10.47 | 13.43 | 0.326 |
+| OMEGA | 53 | 0.731 | 7.59 | 8.71 | 0.385 |
+
+*Confidence intervals and exact statistics are stored in [`results/reference_results/heldout_raw_performance.csv`](file:///c:/Users/eguen/Documents/Githubs-Redlat/Brain_clock/results/reference_results/heldout_raw_performance.csv).*
+
+### Repeated Nested Cross-Validation ($N = 825$)
+
+Performance across 10 complete outer 5-fold cross-validation repetitions:
+
+| Sample | N | Pearson $r$ | MAE (years) | RMSE (years) | $R^2$ |
+|:---|:---:|:---:|:---:|:---:|:---:|
+| **Full Training Sample** | **825** | **0.941 ± 0.003** | **5.28 ± 0.11** | **7.40 ± 0.15** | **0.877 ± 0.005** |
+
+*Complete breakdowns per site and repeat are stored in [`results/results_full_nested/cross_validation/metrics_mean_sd_across_repeats.csv`](file:///c:/Users/eguen/Documents/Githubs-Redlat/Brain_clock/results/results_full_nested/cross_validation/metrics_mean_sd_across_repeats.csv).*
+
+---
+
+## Provenance and Integrity
+
+- Integrity verification for all data matrices and code files was recorded in `SHA256SUMS.csv`.
+- Each execution writes machine-readable run parameters and hash fingerprints to `artifact_provenance.json`.
+- ODQ (Off-Diagonal Quality) summary metrics are retained strictly for descriptive quality control.

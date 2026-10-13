@@ -75,9 +75,10 @@ GRID = {
 }
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-DEFAULT_TRAIN = SCRIPT_DIR / "train_database.csv"
-DEFAULT_TEST = SCRIPT_DIR / "test_database.csv"
-DEFAULT_OUT = SCRIPT_DIR / "results"
+REPO_DIR = SCRIPT_DIR.parent
+DEFAULT_TRAIN = (REPO_DIR / "data" / "train_database.csv") if (REPO_DIR / "data" / "train_database.csv").exists() else (SCRIPT_DIR / "train_database.csv")
+DEFAULT_TEST = (REPO_DIR / "data" / "test_database.csv") if (REPO_DIR / "data" / "test_database.csv").exists() else (SCRIPT_DIR / "test_database.csv")
+DEFAULT_OUT = REPO_DIR / "results"
 
 
 def feature_columns() -> list[str]:
@@ -744,7 +745,7 @@ def compute_selection(
     summary.columns = ["_".join(column) for column in summary.columns]
     summary = summary.reset_index()
     summary["max_site_age_mae_se_repeats"] = (
-        summary["max_site_age_mae_std"]
+        summary["max_site_age_mae_std"].fillna(0.0)
         / np.sqrt(summary["max_site_age_mae_count"])
     )
     best = summary.loc[summary["max_site_age_mae_mean"].idxmin()]
@@ -1115,11 +1116,38 @@ def run_heldout(
 
 
 def main() -> None:
+    global N_OUTER_SPLITS, N_OUTER_REPEATS, N_INNER_SPLITS, N_INNER_REPEATS, N_JOBS, GRID
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--train", type=Path, default=DEFAULT_TRAIN)
     parser.add_argument("--test", type=Path, default=DEFAULT_TEST)
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
+    parser.add_argument(
+        "--smoke-test",
+        action="store_true",
+        help="Run a fast minimal verification with reduced folds and grid",
+    )
+    parser.add_argument(
+        "--n-jobs",
+        type=int,
+        default=N_JOBS,
+        help=f"Number of parallel worker processes (default: {N_JOBS})",
+    )
     args = parser.parse_args()
+
+    if args.n_jobs is not None:
+        N_JOBS = args.n_jobs
+    if args.smoke_test:
+        print("[SMOKE TEST] Running fast minimal pipeline verification...")
+        N_OUTER_SPLITS = 2
+        N_OUTER_REPEATS = 1
+        N_INNER_SPLITS = 2
+        N_INNER_REPEATS = 1
+        GRID = {
+            "C": (100.0,),
+            "gamma": (0.1,),
+            "epsilon": (0.1,),
+        }
+
     core = load_core()
     use_augmentation = False
     train, features = core.load_training(args.train)
